@@ -1,0 +1,31 @@
+name: Update and Fix M3U8 Playlist
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs automatically every midnight
+  workflow_dispatch:      # Allows you to click "Run workflow" manually
+
+jobs:
+  validate-and-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout local repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Download and clean playlist
+        # This executes the Python script below to prune unworking links
+        run: python clean_playlist.py
+
+      - name: Commit clean list to repository
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Fix: Remove unworking streams from xykt-fix list"
+          file_pattern: "list.m3u8"
