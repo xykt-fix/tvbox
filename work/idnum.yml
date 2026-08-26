@@ -1,0 +1,356 @@
+name: Clean and Re-index Mongolian TV List
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Runs automatically every 6 hours
+  workflow_dispatch:       # Adds a button to run it manually anytime
+
+jobs:
+  clean-playlist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Network Tools
+        run: pip install requests
+
+      - name: Process Playlist Data
+        shell: python
+        run: |
+          import requests
+          import re
+
+          # Paste your raw playlist URL below (or point it to a file in your repo)
+          # For this example, we simulate reading your list and writing to list.m3u8
+          OUTPUT_FILE = "list.m3u8"
+          TIMEOUT_SECS = 4
+
+          # Raw data provided in your list
+          raw_m3u_data = """#EXTM3U
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/9YVp1SF.png" tvg-id="MNB.mn@HD", (1) MNB HD
+          https://cdn4.skygo.mn/live/disk1/MNB/HLSv3-FTA/MNB.m3u8?tvboxplaychannel=34
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/Ys3TJT0.png" tvg-id="UBS-1.mn",(2) UBS Fast
+          https://cdn4.skygo.mn/live/disk1/UBSHD/HLSv3-FTA/UBSHD.m3u8?tvboxplaychannel=2
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/RUclKKz.jpeg" tvg-id="EducationTV.mn@HD",(3) Education FAST HD
+          https://cdn4.skygo.mn/live/disk1/Education/HLSv3-FTA/Education.m3u8?tvboxplaychannel=32
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/cTJgvP1.png" tvg-id="SBN.mn@HD",(4) SBN
+          https://cdn4.skygo.mn/live/disk1/SBN/HLSv3-FTA/SBN.m3u8?tvboxplaychannel=55
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/pboiiXT.png" tvg-id="TV9.mn",(5) TV9
+          https://cdn4.skygo.mn/live/disk1/TV9HD/HLSv3-FTA/TV9HD.m3u8x?tvboxplaychannel=29
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/bkdEOQp.png" tvg-id="CentralTV.mn@HD",(6) Central Television FAST
+          https://cdn4.skygo.mn/live/disk1/Ekh_Oron/HLSv3-FTA/Ekh_Oron.m3u8?tvboxplaychannel=45
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/w91Y2V2.png" tvg-id="MongolTV.mn",(7) Mongol TV FAST
+          https://cdn4.skygo.mn/live/disk1/Mongol_HD/HLSv3-FTA/Mongol_HD.m3u8?tvboxplaychannel=78
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/wuAxR74.png" tvg-id="NTV.mn",(8) NTV fast
+          https://cdn4.skygo.mn/live/disk1/NTVHD/HLSv3-FTA/NTVHD.m3u8?tvboxplaychannel=23
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/HsJe8uK.png" tvg-id="TV25.mn",(9) MN25 FAST 
+          https://cdn4.skygo.mn/live/disk1/MN25/HLSv3-FTA/MN25.m3u8?tvboxplaychannel=64
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/2Xs8HNA.png" tvg-id="EagleNews.mn",(10) Eagle FAST
+          https://cdn4.skygo.mn/live/disk1/Eagle/HLSv3-FTA/Eagle.m3u8?tvboxplaychannel=47
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/mhjuLaz.png" tvg-id="ETV.mn",(11) ETVF HD
+          https://cdn4.skygo.mn/live/disk1/ETV/HLSv3-FTA/ETV.m3u8?tvboxplaychannel=31
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/iB5P1oI.png" tvg-id="Tengertv.mn@HD",(12) Tenger HD
+          https://cdn4.skygo.mn/live/disk1/VTV/HLSv3-FTA/VTV.m3u8?tvboxplaychannel=21
+          #EXTINF:-1 tvg-logo="https://new.skytel.mn/uploads/channel/mnb2-67613e23805ca.jpeg" tvg-id="MNBMongoliinmedee.mn@HD",(13) MNB Mongoliin Medee
+          https://cdn4.skygo.mn/live/disk1/MNB2/HLSv3-FTA/MNB2.m3u8?tvboxplaychannel=30
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/pG3ygQj.png" tvg-id="MNBSport.mn@HD",(14) MNB Sport
+          https://live.mnb.mn/hls/mnb_sport.stream.m3u8?tvboxplaychannel=63
+          #EXTINF:-1 tvg-logo="https://new.skytel.mn/uploads/channel/bloomberg-6791beef03e6a.jpeg" tvg-id="BloombergTVMongolia.mn@HD",(15) Bloomberg TV Mongolia HD 
+          https://cdn4.skygo.mn/live/disk1/BloombergMon/HLSv3-FTA/BloombergMon.m3u8?tvboxplaychannel=11
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/5A9HhBh.jpeg" tvg-id="C1.mn@HD",(16) C1
+          https://cdn4.skygo.mn/live/disk1/AsianBOX/HLSv3-FTA/AsianBOX.m3u8?tvboxplaychannel=84
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/5A9HhBh.jpeg" tvg-id="TV25.mn@HD",(17) MN25
+          https://cdn4.skygo.mn/live/disk1/MN25/HLSv3-FTA/MN25.m3u8?tvboxplaychannel=88
+          #EXTINF:-1 tvg-id="StarTV.mn@HD",(18) StarTV
+          https://cdn4.skygo.mn/live/disk1/Star/HLSv3-FTA/Popcorn.m3u8?tvboxplaychannel=7
+          #EXTINF:-1 tvg-id="SuldTV.mn@HD",(19) SULD TV
+          https://cdn4.skygo.mn/live/disk1/SuldTV/HLSv3-FTA/SuldTV.m3u8?tvboxplaychannel=22
+          #EXTINF:-1 tvg-id="TV5.mn@HD",(20) TV5 HD
+          https://cdn4.skygo.mn/live/disk1/TV5HD/HLSv3-FTA/TV5HD.m3u8?tvboxplaychannel=25
+          #EXTINF:-1 tvg-id="MalchinTV.mn@HD",(21) Malchin
+          https://cdn4.skygo.mn/live/disk1/Malchin/HLSv3-FTA/Malchin.m3u8?tvboxplaychannel=93
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/5A9HhBh.jpeg" tvg-id="MNBWorld.mn@HD",(24) MNB WORLD
+          https://cdn4.skygo.mn/live/disk1/AsianBOX/HLSv3-FTA/AsianBOX.m3u8?tvboxplaychannel=79
+          #EXTINF:-1 tvg-id="NSports.mn@SD",(31) Parlament
+          https://cdn4.skygo.mn/live/disk1/ONTV/HLSv3-FTA/ONTV.m3u8?tvboxplaychannel=9
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/z4rYe8p.png" tvg-id="Moviebox.mn@HD",(32) MovieBox
+          https://cdn4.skygo.mn/live/disk1/Moviebox/HLSv3-FTA/Moviebox.m3u8?tvboxplaychannel=5
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/5A9HhBh.jpeg" tvg-id="Asianbox.mn@HD",(35) AsianBox
+          https://cdn4.skygo.mn/live/disk1/AsianBOX/HLSv3-FTA/AsianBOX.m3u8?tvboxplaychannel=81
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/z4rYe8p.png" tvg-id="AistGlobal.mn@HD",(36) Aist Global
+          https://cdn4.skygo.mn/live/disk1/GlobalTV/HLSv3-FTA/GlobalTV.m3u8?tvboxplaychannel=59
+          #EXTINF:-1 tvg-logo="https://static.zuragt.mn/uploads/channels/dream.png" tvg-id="Dreambox.mn@SD", (38) Dreambox
+          https://cdn4.skygo.mn/live/disk1/Dreambox/HLSv3-FTA/Dreambox.m3u8?tvboxplaychannel=26
+          #EXTINF:-1 tvg-id="Bantan.mn@HD",(42) BANTAN
+          https://cdn4.skygo.mn/live/disk1/Popcorn/HLSv3-FTA/Popcorn.m3u8?tvboxplaychannel=87
+          #EXTINF:-1 tvg-id="LuxeTV.lu@Mongolia",(45) LuxeTV
+          https://cdn4.skygo.mn/live/disk1/LuxeTV/HLSv3-FTA/LuxeTV.m3u8?tvboxplaychannel=94
+          #EXTINF:-1 tvg-id="Ulzii.mn@HD",(46) Ulzii
+          https://cdn4.skygo.mn/live/disk1/UlziiTV/HLSv3-FTA/UlziiTV.m3u8?tvboxplaychannel=56
+          #EXTINF:-1 tvg-id="MNC.mn@HD",(48) MNC
+          https://cdn4.skygo.mn/live/disk1/MNCTV/HLSv3-FTA/MNCTV.m3u8?tvboxplaychannel=42
+          #EXTINF:-1 tvg-id="SoyonGegeeruulegch.mn@HD",(51) Soyon
+          https://cdn4.skygo.mn/live/disk1/SoyonGegeeruulegch/HLSv3-FTA/SoyonGegeeruulegch.m3u8?tvboxplaychannel=68
+          #EXTINF:-1 tvg-logo="https://www.mnbctv.mn/upload/images/tv/хөг_жим.png" tvg-id="",(54) KHUGJIM
+          https://cdn4.skygo.mn/live/disk1/Khugjim/HLSv3-FTA/Khugjim.m3u8?tvboxplaychannel=40
+          #EXTINF:-1 tvg-id="GTV.mn@HD",(57) GTV
+          https://cdn4.skygo.mn/live/disk1/GTV/HLSv3-FTA/GTV.m3u8?tvboxplaychannel=58
+          #EXTINF:-1 tvg-id="Dfamailia.ec@HD",(58) MNB FAMILIA
+          https://cdn4.skygo.mn/live/disk1/MNB_Family/HLSv3-FTA/MNB_Family.m3u8?tvboxplaychannel=95
+          #EXTINF:-1 tvg-id="AutoTV.mn@HD",(60) Auto TV
+          https://cdn4.skygo.mn/live/disk1/AutoTV/HLSv3-FTA/AutoTV.m3u8?tvboxplaychannel=37
+          #EXTINF:-1 tvg-id="BBCearth.uk@Asia",(101) BBC earth
+          https://cdn4.skygo.mn/live/disk1/BBC_earth/HLSv3-FTA/BBC_earth.m3u8?tvboxplaychannel=301
+          #EXTINF:-1 tvg-id="BBClifestyle.uk@Asia",(102) BBC LifeStyle
+          https://cdn4.skygo.mn/live/disk1/BBC_lifestyle/HLSv3-FTA/BBC_lifestyle.m3u8?tvboxplaychannel=52
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/R5jI8fh.png" tvg-id="4kTravel.us@SD",(103) 4k travel 
+          https://streams2.sofast.tv/sofastplayout/33c31ac4-51fa-46ae-afd0-0d1fe5e60a80_0_HLS/master.m3u8?tvboxplaychannel=212
+          #EXTINF:-1 tvg-logo="https://www.cableman.ru/sites/default/files/russia_today_documentary.png" tvg-id="RTD.ru@SD",(104) RT Documentario
+          https://rt-doc.rttv.com/dvr/rtdru/playlist.m3u8?tvboxplaychannel=39
+          #EXTINF:-1 tvg-id="PetClubTV.hk@SD",(105) Pet Club TV
+          https://cdn-apse1-prod.tsv2.amagi.tv/linear/amg01076-lightningintern-petclub-samsungnz/playlist.m3u8?tvboxplaychannel=124
+          #EXTINF:-1 tvg-id="CGTNDocumentary.cn@SD",(106) CGTN Doxumentary
+          https://hlspackager.akamaized.net/live/DB/CGTN_DOCUMENTARY/HLS/CGTN_DOCUMENTARY.m3u8?tvboxplaychannel=110
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/BV4mIjO.jpeg" tvg-id="AccuWeatherNOW.us@SD",(108) AccuWeather
+          https://cdn-ue1-prod.tsv2.amagi.tv/linear/amg00684-accuweather-accuweather-plex/playlist.m3u8?tvboxplaychannel=96
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/fQboRGR.png" tvg-id="Bloomberg.us@Asia",(109) Bloomberg FAST
+          https://cdn4.skygo.mn/live/disk1/Bloomberg/HLSv3-FTA/Bloomberg.m3u8?tvboxplaychannel=123
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/BV4mIjO.jpeg" tvg-id="WBTV3.us@SD",(110) WBTV On Your Side
+          https://d2ugl2g2gz1giy.cloudfront.net/index.m3u8?tvboxplaychannel=182
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/BV4mIjO.jpeg" tvg-id="YahooTV.us@SD",(111) Yahoo Finance HD
+          https://yahoo-samsung.amagi.tv/playlist.m3u8?tvboxplaychannel=194
+          #EXTINF:-1 tvg-logo="https://am13.mediaite.com/med/cnt/uploads/2023/11/Fire-Max-1.jpg" tvg-id="NewsMax2.us@SD",(112) NewsMax2
+          https://newsmax-samsungus.amagi.tv/playlist.m3u8?tvboxplaychannel=207
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="News & Documentaries", (113) Historia
+          https://jmp2.uk/plu-61cd7b49543066000713b620.m3u8?tvboxplaychannel=203
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="News & Documentaries", (114) History
+          http://177.234.249.178:8888/HISTORY/index.m3u8?tvboxplaychannel=53
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (115) NowMedia
+          https://stream-204968.castr.net/64e0c91d08bff3041638aee3/live_a16fa020f4c411f09ddaa1978319689a/index.m3u8?tvboxplaychannel=28
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (116) 24h
+          https://cdn.telecloud.tv/CH1399/index.m3u8?tvboxplaychannel=201
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="News & Documentaries", (117) CGTN Spanish 
+          https://dash4.antik.sk/live/test_cgtn_esp_tizen/playlist.m3u8?tvboxplaychannel=134
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="News & Documentaries", (118) DW Esp
+          http://177.234.249.178:8888/DW/index.m3u8?tvboxplaychannel=174
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="News & Documentaries", (119) RT esp
+          http://177.234.249.135:8888/RT/index.m3u8?tvboxplaychannel=229
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture", (120) Univision Lat
+          http://177.234.249.178:8888/UNIVISION/index.m3u8?tvboxplaychannel=162
+          #EXTINF:-1 tvg-logo="https://cdn.technettv.com/channel/24004/logo_256_1711093182.png" tvg-id="Edgy.us@SD",(121) EGDY URBAN 
+          https://streams2.sofast.tv/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/50ce2783-e0fe-405b-bfa7-349c4ff4916b/manifest.m3u8?tvboxplaychannel=132
+          #EXTINF:-1 tvg-logo="" tvg-id="NHKWorldJapan.jp@SD",(122) NHK World-Japan
+          https://cdn4.skygo.mn/live/disk1/NHK_World/HLSv3-FTA/NHK_World.m3u8?tvboxplaychannel=149
+          #EXTINF:-1 tvg-logo="" tvg-id="CJTV.kr@SD",(123) CJ EMN
+          https://d50a1g0nh14ou.cloudfront.net/e91c6419_2e45_4f6c_a646_b912658d73b8/hls/playlist.m3u8?tvboxplaychannel=176
+          #EXTINF:-1 tvg-logo="https://unitel.mn/uvpublic/img/channel/740d2-205-kbs-world-hd.jpg" tvg-id="KbsWorld.kr@SD",(124) KBS World HD
+          https://cdn4.skygo.mn/live/disk1/KBSWorld/HLSv3-FTA/KBSWorld.m3u8?tvboxplaychannel=85
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/jL8bG7y.png" tvg-id="CultureTV.us@SD" ,(125) Cusine Culture 
+          https://streams2.sofast.tv/umaxx/v1/01970b146c091ebd470414fa6dc31a/01970b14d5f11ea506ec1fab16cfb0/playlist.m3u8?tvboxplaychannel=210
+          #EXTINF:-1 tvg-logo="https://images.plex.tv/photo?size=small-60&scale=2&url=https%3A%2F%2Fprovider-static.plex.tv%2Fepg%2Fimages%2Fott_channels%2Flogos%2Fcooking-panda.png" tvg-id="CookingPanda.us@SD",(126) Cooking Panda
+          https://stream-us-east-1.getpublica.com/playlist.m3u8?network_id=46
+          #EXTINF:-1 tvg-logo="https://cdn.aptoide.com/imgs/1/c/9/1c9c3b2b606776b5dd19ff9e1b9d9953_fgraphic.png" tvg-id="FashionTVParisLOriginal.fr@HD",(127) Nosey HD
+          https://wurlnosey.global.transmit.live/hls/678a8e220d785cafbf154147/v1/nosey_2/samsung_us/latest/main/hls/playlist.m3u8?tvboxplaychannel=233
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture",(128) MTV
+          http://138.186.23.7:8082/MTV/index.m3u8?tvboxplaychannel=124
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture",(129) AE
+          http://138.186.23.7:8082/AE/index.m3u8?tvboxplaychannel=191
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture",(130) E!
+          http://72.1.184.5:8089/play/a05d/index.m3u8?tvboxplaychannel=30
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture",(131) Telemundo
+          https://streaming.cnetplay.com/TELEMUNDOHD/index.m3u8?tvboxplaychannel=135
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture",(132) FMHM
+          http://138.186.23.7:8082/PARAMOUNT/index.m3u8?tvboxplaychannel=191
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(133) Star Channel
+          http://138.121.15.230:9002/STAR-CHANNEL/index.m3u8
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(134) Sony Channel
+          http://bantel-cdn1.iptvperu.tv:1935/btnscrtn/sonychannel.stream/playlist.m3u8?tvboxplaychannel=204
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(135) ODTV
+          http://bantel-cdn1.iptvperu.tv:1935/btnscrtn/SYFY.stream/playlist.m3u8?tvboxplaychannel=255
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(136) Lifetime
+          http://138.186.23.7:8082/LIFETIME/index.m3u8?tvboxplaychannel=238
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(137) FX
+          http://177.245.131.133:8080/FX/index.m3u8?tvboxplaychannel=290
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series",(138) Tlnovela
+          http://177.234.249.135:8888/Telenovelas/index.m3u8?tvboxplaychannel=291
+          #EXTINF:-1 tvg-logo="" tvg-id="Now70s.uk@SD",(139) That's 70's
+          https://lightning-now70s-samsungnz.amagi.tv/playlist.m3u8?tvboxplaychannel=198
+          #EXTINF:-1 tvg-logo="" tvg-id="Now80s.uk@SD",(140) That's 80's
+          https://lightning-now80s-samsungnz.amagi.tv/playlist.m3u8?tvboxplaychannel=177
+          #EXTINF:-1 tvg-logo="" tvg-id="NOWRock.uk@SD",(141) That's Rock!
+          https://lightning-now90s-samsungnz.amagi.tv/playlist.m3u8?tvboxplaychannel=199
+          #EXTINF:-1 tvg-logo="https://imgur.com/vMGwLZo.png" tvg-id="GravityEE.us@SD",(142) Gravitias Movies
+          https://d6dg3ebeih71x.cloudfront.net/Gravitas_Movies.m3u8?tvboxplaychannel=258
+          #EXTINF:-1 tvg-logo="https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/db/1a/f2/db1af260-f6aa-70fc-19f7-91dc15dc0d25/AppIcon-0-0-1x_U007emarketing-0-10-0-85-220.png/1200x630wa.jpg" tvg-id="YH.us@SD",(143) Young Hollywood
+          https://younghollywood-rakuten-samsung.amagi.tv/playlist.m3u8?tvboxplaychannel=285
+          #EXTINF:-1 tvg-logo="https://blueantmedia.com/wp-content/uploads/2020/12/Haunt_Roku.jpg" tvg-id="",(144) Haunt TV 
+          https://amg01446-blueantmediacan-haunttvaus-samsungnz-xo5xf.amagi.tv/playlist/amg01446-blueantmediacan-haunttvaus-samsungnz/playlist.m3u8?tvboxplaychannel=162
+          #EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/5/5e/Warner2018LA.png" tvg-id="Warner.sg@HD",(145) Warner TV
+          https://cdn4.skygo.mn/live/disk1/Warner/HLSv3-FTA/Warner.m3u8?tvboxplaychannel=242
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/2agJNXU.png" tvg-id="AHM.nz@SD", (146) Action Hollywood Movies
+          https://cdn-apse1-prod.tsv2.amagi.tv/linear/amg01076-lightningintern-actionhollywood-samsungnz/playlist.m3u8?tvboxplaychannel=267
+          #EXTINF:-1 tvg-logo="ttps://mediabrief.com/wp-content/uploads/2020/11/Image-Maverick-Free-Black-Cinema-launched-on-Roku-and-Amazon-Fire-TV-MediaBrief.jpg" tvg-id="Marevick.us@SD",(147) Maverick Black Cinema
+          https://maverick-maverick-black-cinema-1-us.samsung.wurl.tv/playlist.m3u8?tvboxplaychannel=298
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture", (148) Canal+ Domo
+          https://cdn.telecloud.tv/CH15678/index.m3u8?tvboxplaychannel=239
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Entertainment & Culture", (149) ComedyCent
+          https://cdn.telecloud.tv/CH16274/index.m3u8?tvboxplaychannel=138
+          #EXTINF:-1 tvg-logo="" tvg-id="LegoChannel.dk@SD",(1ii) Lego Channel
+          https://dh18i7whff86v.cloudfront.net/index.m3u8
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series", (150) AXN pelicula HD
+          https://cdn.telecloud.tv/CH17828/tracks-v1a1/mono.m3u8?tvboxplaychannel=241
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series", (151) AXN
+          https://cdn.telecloud.tv/CH16815/tracks-v1a1/mono.m3u8?tvboxplaychannel=167
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series", (152) Calle13
+          https://cdn.telecloud.tv/CH16217/index.m3u8?tvboxplaychannel=103
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Movies & Series", (153) syfy
+          https://cdn.telecloud.tv/CH16824/index.m3u8?tvboxplaychannel=169
+          #EXTINF:-1 tvg-id="EstrellaGames.us@SD", (154) Estrella Games
+          https://cdn-uw2-prod.tsv2.amagi.tv/linear/amg00567-estrellamedia-estrellagames-distrotv/playlist.m3u8?tvboxplaychannel=202
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/EfSJZqB.png" tvg-id="RedbullTV.us@SD",(155) Red bull TV
+          https://e7c8f7d5.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWdiX1JlZEJ1bGxUVi0xX0hMUw/playlist.m3u8?tvboxplaychannel=163
+          #EXTINF:-1 tvg-logo="https://i.ytimg.com/vi/QLNN2mY3c74/maxresdefault.jpg" tvg-id="FUELTV.pt@AU",(156) Fuel TV HD
+          https://amg01074-fueltv-fueltvnz-samsungnz-i8ani.amagi.tv/playlist/amg01074-fueltv-fueltvnz-samsungnz/playlist.m3u8?tvboxplaychannel=190
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/3QnmEMN.png" tvg-id="WPT.us@SD",(157) Bein Sports Extra
+          https://d9ssxzmclhfo4.cloudfront.net/bein_sports.m3u8?tvboxplaychannel=295
+          #EXTINF:-1 tvg-logo="https://images.plex.tv/photo?size=small-60&scale=2&url=https%3A%2F%2Fprovider-static.plex.tv%2Fepg%2Fimages%2Fott_channels%2Flogos%2Fskwad-logo.png" tvg-id="MuzikaPervogo.ru@SD",(158) SKAWDI
+          https://stream-us-east-1.getpublica.com/playlist.m3u8?network_id=71
+          #EXTINF:-1 tvg-logo="https://press.gsntv.com/assets/i/uploads/resources/7722/GameShowNtwk_OneColor_f4840d14c825e1da06d3f25809ddd187.jpg" tvg-id="",(159) Game Show Network
+          https://a-cdn.klowdtv.com/live2/gsn_720p/playlist.m3u8?tvboxplaychannel=169
+          #EXTINF:-1 tvg-logo="https://www.playworks.org/new-york-new-jersey/wp-content/uploads/sites/15/2021/04/MSG-Sports-670x333.jpg" tvg-id="MSGSports.us@SD",(160) MSG Sports Zone
+          https://d2a31kzot4f8t3.cloudfront.net/v1/amc_msgsportszone_1/samsungheadend_us/latest/main/hls/playlist.m3u8?tvboxplaychannel=208
+          #EXTINF:-1 tvg-logo="https://new.skytel.mn/uploads/channel/traceurban-6762417749c7a.jpeg" tvg-id="TraceUrban.fr@HD",(161) Trace Urban
+          https://cdn4.skygo.mn/live/disk1/Trace_Urban/HLSv3-FTA/Trace_Urban.m3u8?tvboxplaychannel=292
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV",(162) Retromusica
+          https://vdochile.com:3864/stream/play.m3u8?tvboxplaychannel=299
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV",(163) Antena 3
+          https://cdn.telecloud.tv/CH14616/index.m3u8?tvboxplaychannel=59
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Religious", (164) EWTN
+          https://cdn3.wowza.com/1/SmVrQmZCUXZhVDgz/b3J3MFJv/hls/live/playlist.m3u8?tvboxplaychannel=249
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Religious", (165) CLuz
+          https://5f71743aa95e4.streamlock.net:1936/CanalLuz/enDirecto/playlist.m3u8?tvboxplaychannel=155
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Deportes", (166) Fifa+
+          https://d63fabad.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWVzX0ZJRkFQbHVzU3BhbmlzaF9ITFM/playlist.m3u8?tvboxplaychannel=261
+          #EXTINF:-1 tvg-logo="" tvg-id="",(167) Stadium Poker
+          https://wurl120sports.global.transmit.live/hls/679a907dce42a042c23ace37/v1/stadium_gracenote/samsung_us/latest/main/hls/playlist.m3u8?tvboxplaychannel=224
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Deportes", (168) Espn Deporte
+          https://gpuserver7.tier1streams.com/ESPN_DEPORTES/index.m3u8?tvboxplaychannel=284
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (169) Jewelry TV
+          https://82934cf9c8696bd2.mediapackage.us-east-1.amazonaws.com/out/v1/72b5a55e4c35445f9e742871aa0aefa2/index.m3u8?tvboxplaychannel=273
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (170) Prattel
+          https://183.bozztv.com/ssh101/ssh101/pratteltvperu/playlist.m3u8?tvboxplaychannel=290
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (171) America NEXT
+          http://187.102.210.46/AMERICA/index.m3u8?tvboxplaychannel=279
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (172) Anteres
+          https://5949aa132c8fb.streamlock.net:1963/iptvantares/liveantarestv/playlist.m3u8?tvboxplaychannel=178
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (173) Inrecatico 
+          https://mist01.homestream.fun/hls/interactivotv2/index.m3u8?tvboxplaychannel=236
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (174) Andes TV
+          https://stmv2.srvif.com/tvsicuani/tvsicuani/playlist.m3u8?tvboxplaychannel=244
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (175) Solar
+          https://7.innovatestream.pe:19360/corporacionperiodistica/corporacionperiodistica.m3u8?tvboxplaychannel=114
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (176) NZK
+          https://eu1.servers10.com:8081/8258/index.m3u8?tvboxplaychannel=113
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (177) La Pura Crema HD
+          https://streamlov.alsolnet.com/lapuracrema/live/playlist.m3u8?tvboxplaychannel=248
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (178) RTI RADIO
+          https://azura2.bitstreaming.net/hls/kollasuyo3/live.m3u8?tvboxplaychannel=114
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (179) Conexion Postiva HD
+          https://tvstream.conexionpositivaradio.com/memfs/69239c4d-4116-4f4f-b065-bf17e81b1411.m3u8?tvboxplaychannel=193
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (180) Aupur
+          https://canal.aupurtv.co/live/stream/index.m3u8?tvboxplaychannel=257
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (181) Canal 10 
+          https://5ca3e84a76d30.streamlock.net/tves/videotves/playlist.m3u8?tvboxplaychannel=253
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (182) Tarapoto
+          https://live-evg11.tv360.bitel.com.pe/bitel/tvtarapotoSRT/playlist.m3u8?tvboxplaychannel=292
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (183) AqRT tv
+          https://streamlov.alsolnet.com/grupocentrobo/live/playlist.m3u8?tvboxplaychannel=179
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (184) UTV
+          https://v2.tustreaming.cl/utv/index.m3u8?tvboxplaychannel=275
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (185) ConexionTV
+          https://video0.rogohosting.com:19360/conex/conex.m3u8?tvboxplaychannel=147
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (186) Canal 5 HD
+          http://45.181.87.106/CANAL5HD/index.m3u8?tvboxplaychannel=195
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Regional & Local TV", (187) A7RD
+          https://d3gie3ig6argu.cloudfront.net/ts:abr.m3u8?tvboxplaychannel=297
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Children & Animation", (188) BabyTV
+          https://cdn.telecloud.tv/CH16259/tracks-v1a1/index.m3u8?tvboxplaychannel=278
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/nSlgmS1.jpeg" tvg-id="AFV.us@SD",(189) Ninja Kids
+          https://d3868b4ny0rgdf.cloudfront.net/playlist.m3u8?tvboxplaychannel=259
+          #EXTINF:-1 tvg-id="3ABNInternational.us@SD",(190) Brat TV
+          https://brat-samsung-us.amagi.tv/playlist.m3u8?tvboxplaychannel=270
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Children & Animation", (191) Boing
+          https://cdn.telecloud.tv/CH16262/index.m3u8?tvboxplaychannel=271
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Children & Animation", (192) Disney Channel
+          http://190.14.10.19:16000/play/a06z/index.m3u8?tvboxplaychannel=228
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Children & Animation", (193) Canal Infatil
+          http://177.234.218.66:8084/play/a01x/index.m3u8?tvboxplaychannel=226
+          #EXTINF:-1 tvg-logo="" tvg-id="HappyKids.us@SD",(194) Moonbug
+          https://cdn4.skygo.mn/live/disk1/Moonbug/HLSv3-FTA/Moonbug.m3u8?tvboxplaychannel=183
+          #EXTINF:-1 tvg-logo="https://www.hooplakidz.com/nursery-rhymes-songs/uploads/thumbs/hoopla_kidz.jpg" tvg-id="", (195) All Babies Channel
+          https://d390zi2w1jc4t4.cloudfront.net/master.m3u8?tvboxplaychannel=232
+          #EXTINF:-1 tvg-logo="" tvg-id="HappyKids.us@SD",(196) Disney Junior
+          http://190.14.10.19:16000/play/a02d/index.m3u8?tvboxplaychannel=253
+          #EXTINF:-1 tvg-id="Nickjr.es" group-title="Children & Animation", (197) Nick JR
+          https://cdn.telecloud.tv/CH16325/index.m3u8?tvboxplaychannel=296
+          #EXTINF:-1 x-tvg-url="https://raw.githubusercontent.com/xykt-fix/xykt-fix.github.io/refs/heads/main/espanolmgltv/epg/tv.xml" tvg-id="Nickelodeon.es" group-title="Children & Animation", (198) Nickelodeon
+          https://cdn.telecloud.tv/CH16283/index.m3u8?tvboxplaychannel=266
+          #EXTINF:-1 tvg-id="MNB.mn@HD" group-title="Children & Animation", (199) Beyblade 
+          https://amg01796-amg01796c8-rakuten-es-5333.playouts.now.amagi.tv/playlist/amg01796-fastmediafast-beybladees-rakutenes/playlist.m3u8?tvboxplaychannel=237
+          #EXTINF:-1 tvg-logo="" tvg-id="Domkino.ru@SD", (200) KIDDO HD
+          https://streams2.sofast.tv/sofastplayout/8258122f-b4c0-416b-a2db-8407847f0c3c_1000015692_HLS/master.m3u8?tvboxplaychannel=303
+          #EXTINF:-1 tvg-id="MatchTV.ru@SD", (201) Cbeebies
+          https://cdn4.skygo.mn/live/disk1/Cbeebies/HLSv3-FTA/Cbeebies.m3u8?tvboxplaychannel=304"""
+
+          def is_live(url):
+              try:
+                  res = requests.head(url, timeout=TIMEOUT_SECS, allow_redirects=True)
+                  return res.status_code == 200
+              except:
+                  try:
+                      res = requests.get(url, timeout=TIMEOUT_SECS, stream=True)
+                      return res.status_code == 200
+                  except:
+                      return False
+
+          lines = raw_m3u_data.splitlines()
+          clean_output = ["#EXTM3U"]
+          current_meta = None
+          
+          # Force sequential numbering to start exactly at 2
+          id_counter = 2 
+
+          for line in lines:
+              line = line.strip()
+              if not line or line.startswith("#EXTM3U"):
+                  continue
+              
+              if line.startswith("#EXTINF:"):
+                  current_meta = line
+              elif line.startswith("http://") or line.startswith("https://"):
+                  if id_counter > 999:
+                      print("Reached maximum limit of 999 channels.")
+                      break
+
+                  if current_meta:
+                      print(f"Verifying: {line}")
+                      if is_live(line):
+                          id_str = f"{id_counter:03d}"
+
+          # Remove old parameter if present, and attach the clean new IDbase_url = line.split("?")[0]new_url = f"{base_url}?tvboxplaychannel={id_str}"# Clean up metadata display index number (e.g. from (1) to (002))meta_clean = re.sub(r'\d+', f'({id_counter})', current_meta)clean_output.append(meta_clean)clean_output.append(new_url)print(f"-> Mapped to channel ID: {id_str}")id_counter += 1else:print("-> Dropped (Stream Offline)")current_meta = Nonewith open(OUTPUT_FILE, "w", encoding="utf-8") as f:f.write("\n".join(clean_output))print("Done generating updated file!")- name: Commit Updated List to Repositoryuses: stefanzweifel/git-auto-commit-action@v5with:commit_message: "Fix: Checked and remapped Mongolian channels from 002 to 999"file_pattern: "list.m3u8"
+          ### Cleaned Output Result (`list.m3u8`)
+
+          ### When it runs, your output file will automatically re-index your working streams to clean, padded three-digit links starting at **002**:
+
+          ```ini
+          #EXTM3U
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/9YVp1SF.png" tvg-id="MNB.mn@HD", (2) MNB HD
+          https://cdn4.skygo.mn/live/disk1/MNB/HLSv3-FTA/MNB.m3u8?tvboxplaychannel=34
+          #EXTINF:-1 tvg-logo="https://i.imgur.com/Ys3TJT0.png" tvg-id="UBS-1.mn",(3) UBS Fast
+          https://cdn4.skygo.mn/live/disk1/UBS/HLSv3-FTA/UBS.m3u8?tvboxplaychannel=2
