@@ -1,0 +1,23 @@
+name: Compile Premium Playlists
+on:
+  repository_dispatch:
+    types: [new_payment_received]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Base
+        uses: actions/checkout@v4
+
+      - name: Inject Secure User Token
+        run: |
+          python build_playlist.py --user "${{ github.event.client_payload.username }}" --token "${{ github.event.client_payload.token }}"
+          
+      - name: Commit and Update Access
+        run: |
+          git config --global user.name "Payment Bot"
+          git config --global user.email "bot@yourdomain.com"
+          git add playlists/
+          git commit -m "Generated secure file link for user: ${{ github.event.client_payload.username }}"
+          git push
