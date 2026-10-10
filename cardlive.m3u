@@ -1,0 +1,11 @@
+#EXTM3U
+#EXTINF:-1 tvg-logo="x.png" tvg-chno="1" tvg-id="1", TK
+https://xykt-fix.github.io/cardlivetoken/tk.stream/index.m3u8?treelicense=permissioneduntil20261201
+#EXTINF:-1 tvg-logo="x.png" tvg-chno="2" tvg-id="2", Cook TV
+https://xykt-fix.github.io/cardlivetoken/cooktv.stream/index.m3u8?treelicense=permissioneduntil20261201
+#EXTINF:-1 tvg-logo="x.png" tvg-chno="600" tvg-id="600", EURO
+https://xykt-fix.github.io/cardlivetoken/ciencrypteuro.stream/index.m3u8?treelicense=permissioneduntil20261201
+#EXTINF:-1 tvg-logo="x.png" tvg-chno="800" tvg-id="800", MB5
+https://xykt-fix.github.io/cardlivetoken/ciencrypteuro.stream/index.m3u8?treelicense=165181391919915145421142091220261201
+
+--- ### Note: 165181391919915145421142091220261201 means permissioneduntil20261201! not token ### ---
