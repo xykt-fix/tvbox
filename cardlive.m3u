@@ -3,6 +3,8 @@
 https://xykt-fix.github.io/cardlivetoken/televiz.stream/index.m3u8
 #EXTINF:-1 tvg-logo="x.png" tvg-chno="100" tvg-id="100", TK
 https://xykt-fix.github.io/cardlivetoken/tk.stream/index.m3u8?treelicense=165181391919915145421142091220261201
+#EXTINF:-1 tvg-logo="x.png" tvg-chno="101" tvg-id="101", CCTV4
+https://xykt-fix.github.io/cardlivetoken/cct.stream/index.m3u8treelicense=165181391919915145421142091220261201
 #EXTINF:-1 tvg-logo="x.png" tvg-chno="200" tvg-id="200", Cook TV
 https://xykt-fix.github.io/cardlivetoken/cooktv.stream/index.m3u8?treelicense=165181391919915145421142091220261201
 #EXTINF:-1 tvg-logo="x.png" tvg-chno="550" tvg-id="550", Talking Toom Live
